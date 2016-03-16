@@ -2,23 +2,27 @@
 require 'yaml'
 require 'open3'
 
-def parse_module_config(modules, module_name)
-  module_config_file = File.new(File.join(module_name, "pilot.yaml"))
-  module_config_contents = module_config_file.read
-  base_config = YAML.load(module_config_contents) || {}
-  base_config["image"] = module_name
-  modules[module_name] = base_config
+SERVICES_DIR = "services"
+
+def service_config_file(service_name)
+    File.new(File.join(SERVICES_DIR, "#{service_name}.yml"))
+end
+
+def load_service_config(services, service_name)
+  config = YAML.load(service_config_file(service_name).read) || {}
+  config["image"] = service_name 
+  services[service_name] = config
  
-  dependencies = base_config["depends_on"]
+  dependencies = config["depends_on"]
   if(dependencies && !dependencies.empty?)
-    dependencies.each {|d| parse_module_config(modules, d)}
+    dependencies.each {|dependency_name| load_service_config(services, dependency_name)}
   end
 end
 
-def generate_docker_compose_yaml(modules)
+def generate_docker_compose_yml(services)
   compose = {
     "version" => "2",
-    "services" => modules
+    "services" => services 
   }
 
   yaml = YAML.dump(compose)
@@ -29,10 +33,10 @@ def generate_docker_compose_yaml(modules)
 end
 
 command = ARGV[0]
-module_name = ARGV[1]
+service_name = ARGV[1]
 
-modules = {}
-module_config_contents = parse_module_config(modules, module_name)
-compose_config = generate_docker_compose_yaml(modules)
+services = {}
+load_service_config(services, service_name)
+compose_config = generate_docker_compose_yml(services)
 
 output, status = Open3.capture2("docker-compose -f - up -d", :stdin_data=> compose_config)
