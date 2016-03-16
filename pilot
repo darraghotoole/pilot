@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+require 'yaml'
+require 'open3'
+
+def parse_module_config(modules, module_name)
+  module_config_file = File.new(File.join(module_name, "pilot.yaml"))
+  module_config_contents = module_config_file.read
+  base_config = YAML.load(module_config_contents) || {}
+  base_config["image"] = module_name
+  modules[module_name] = base_config
+ 
+  dependencies = base_config["depends_on"]
+  if(dependencies && !dependencies.empty?)
+    dependencies.each {|d| parse_module_config(modules, d)}
+  end
+end
+
+def generate_docker_compose_yaml(modules)
+  compose = {
+    "version" => "2",
+    "services" => modules
+  }
+
+  yaml = YAML.dump(compose)
+
+  puts "Final docker-compose yaml:"
+  puts yaml
+  yaml
+end
+
+command = ARGV[0]
+module_name = ARGV[1]
+
+modules = {}
+module_config_contents = parse_module_config(modules, module_name)
+compose_config = generate_docker_compose_yaml(modules)
+
+output, status = Open3.capture2("docker-compose -f - up -d", :stdin_data=> compose_config)
