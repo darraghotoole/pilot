@@ -11,6 +11,7 @@ end
 def load_service_config(services, service_name)
   config = YAML.load(service_config_file(service_name).read) || {}
   config["image"] = service_name 
+  config["container_name"] = service_name
   services[service_name] = config
  
   dependencies = config["depends_on"]
@@ -27,16 +28,61 @@ def generate_docker_compose_yml(services)
 
   yaml = YAML.dump(compose)
 
-  puts "Final docker-compose yaml:"
-  puts yaml
+  #puts "Final docker-compose yaml:"
+  #puts yaml
   yaml
+end
+
+def start(service_name)
+  services = {}
+  load_service_config(services, service_name)
+  compose_config = generate_docker_compose_yml(services)
+
+  Open3.capture2("docker-compose -f - up -d", :stdin_data=> compose_config)
+end
+
+def running_service_names 
+  output, startus = Open3.capture2("docker ps") 
+  running = output.lines.tap {|a| a.shift}.map {|l| l.split(" ").last}
+end
+
+def service_names
+  service_files = Dir[File.join(SERVICES_DIR, "*.yml")]
+  service_files.map {|s| File.basename(s, ".yml")}
+end
+
+def list
+    services = service_names
+    running = running_service_names
+
+    puts
+    services.each {|s| puts "\t#{s}\t#{running.include?(s) ? "running" : "not running"}"}
+    puts
+end
+
+def usage
+    puts "pilot <commond"
+    puts
+    puts "Commands:"
+    puts "start <service_name>\tstart specified service and all dependencies"
+end
+
+def stop(service_name)
+  output, status = Open3.capture2("docker stop #{service_name}") 
+  puts output
 end
 
 command = ARGV[0]
 service_name = ARGV[1]
 
-services = {}
-load_service_config(services, service_name)
-compose_config = generate_docker_compose_yml(services)
-
-output, status = Open3.capture2("docker-compose -f - up -d", :stdin_data=> compose_config)
+if command == "start"
+    start(service_name)
+elsif command == "stop"
+    if service_name == "all"
+        running_service_names.each {|s| stop(s)}
+    else
+        stop(service_name)
+    end
+else
+    list
+end
