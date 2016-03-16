@@ -1,0 +1,4 @@
+image: mongo:2.6.9
+command: --replSet r0
+ports:
+  - "27017:27017"

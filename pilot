@@ -2,7 +2,7 @@
 require 'yaml'
 require 'open3'
 
-SERVICES_DIR = "services"
+SERVICES_DIR =  File.join(File.dirname(__FILE__), "services")
 
 def service_config_file(service_name)
     File.new(File.join(SERVICES_DIR, "#{service_name}.yml"))
@@ -10,7 +10,7 @@ end
 
 def load_service_config(services, service_name)
   config = YAML.load(service_config_file(service_name).read) || {}
-  config["image"] = service_name 
+  config["image"] = service_name unless config["image"]
   config["container_name"] = service_name
   services[service_name] = config
  
@@ -55,21 +55,20 @@ def list
     services = service_names
     running = running_service_names
 
-    puts
-    services.each {|s| puts "\t#{s}\t#{running.include?(s) ? "running" : "not running"}"}
-    puts
+    padding_size = services.max_by(&:length).length
+    services.each {|s| puts "#{s.ljust(padding_size)} #{running.include?(s) ? "running" : "not running"}"}
 end
 
 def usage
     puts "pilot <commond"
     puts
     puts "Commands:"
-    puts "start <service_name>\tstart specified service and all dependencies"
+    puts "start <service_name>\t\t\tstart specified service and all dependencies"
 end
 
 def stop(service_name)
   output, status = Open3.capture2("docker stop #{service_name}") 
-  puts output
+  puts "stopped #{output}"
 end
 
 command = ARGV[0]
