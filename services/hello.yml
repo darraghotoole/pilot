@@ -4,6 +4,6 @@ depends_on:
  - redis
  - elasticsearch
  - mysql
- - mongodb
+ - mongodb-master
  - memcached
  - dynamodb

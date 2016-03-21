@@ -1,4 +1,3 @@
 image: mongodb-master
-command: --replSet rs0
 ports:
   - "27017:27017"
