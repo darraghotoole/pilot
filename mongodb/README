@@ -1,0 +1,3 @@
+ID=`docker ps --filter="name=mongodb" -q`
+docker cp setup.sh ${ID}:.
+docker exec ${ID} bash -c 'chmod +x setup.sh && ./setup.sh'

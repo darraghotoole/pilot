@@ -43,7 +43,16 @@ end
 
 def running_service_names 
   output, startus = Open3.capture2("docker ps") 
-  running = output.lines.tap {|a| a.shift}.map {|l| l.split(" ").last}
+  parse_service_names(output)
+end
+
+def all_service_names
+  output, startus = Open3.capture2("docker ps -a") 
+  parse_service_names(output)
+end
+
+def parse_service_names(output)
+    output.lines.tap {|a| a.shift}.map {|l| l.split(" ").last}
 end
 
 def service_names
@@ -71,6 +80,15 @@ def stop(service_name)
   puts "stopped #{output}"
 end
 
+def stop_all
+    running_service_names.each {|s| stop(s)}
+end
+
+def clean(service_name)
+  output, status = Open3.capture2("docker rm #{service_name}") 
+  puts "deleted #{output}"
+end
+
 command = ARGV[0]
 service_name = ARGV[1]
 
@@ -78,10 +96,13 @@ if command == "start"
     start(service_name)
 elsif command == "stop"
     if service_name == "all"
-        running_service_names.each {|s| stop(s)}
+        stop_all
     else
         stop(service_name)
     end
+elsif command == "clean"
+    stop_all
+    all_service_names.each {|s| clean(s)}
 else
     list
 end
